@@ -1,5 +1,5 @@
-# 2026-07-02T20-04Z: Release 0.2.0 :-- .../shellLibs/notelibs/.ver/0.2.2/notelib
-notelibv () { echo Release 0.2.0: notelib version 0.2.2 }
+# 2026-07-02T20-34Z: Release 0.2.0 :-- .../shellLibs/notelibs/.ver/0.2.3/notelib
+notelibv () { echo Release 0.2.0: notelib version 0.2.3 }
 # CLI note taking functions
 # from: http://lifehacker.com/5592047/turn-your-command-line-into-a-fast-and-simple-note+taking-tool
 # updates from mcgowan@alum.mit.edu
