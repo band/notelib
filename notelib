@@ -1,5 +1,5 @@
-# 2026-07-01T21-28Z: Release 0.2.0 :-- .../shellLibs/notelibs/.ver/0.2.1/notelib
-notelibv () { echo Release 0.2.0: notelib version 0.2.1 }
+# 2026-07-02T20-04Z: Release 0.2.0 :-- .../shellLibs/notelibs/.ver/0.2.2/notelib
+notelibv () { echo Release 0.2.0: notelib version 0.2.2 }
 # CLI note taking functions
 # from: http://lifehacker.com/5592047/turn-your-command-line-into-a-fast-and-simple-note+taking-tool
 # updates from mcgowan@alum.mit.edu
@@ -21,12 +21,11 @@ NAME
   notelib - functions for command-line text or markdown note taking
 
 SYNOPSIS
-  n [notefile_name]	     Create a new note or Open an existing note; default name is a timestamp
-  nlast			     Edit the most recent note
-  nedit pattern		     Edit the first note name matching pattern
-  nls [pattern]		     List notes matching name, or with no argument, list all
-  notelib [-V|--version]  Display release/version info
-  notelib [-h|--help|help]   Display this help info
+  n [notefile_name]		Create a new note or Open an existing note; default name is a timestamp
+  nlast [pattern]		Edit most recent note or first note name matching pattern
+  nls [pattern]			List notes matching name, or with no argument, list all
+  notelib [-V|--version]	Display release/version info
+  notelib [-h|--help|help]	Display this help info
 
 ENVIRONMENT
   NOTES_DIR	The notes directory. `~/text/notes` is the default if not set
@@ -65,28 +64,16 @@ nls () {
     ls -Flrt -- $files
 }
 nlast() {
-    : edit the most recent note
-    setopt extendedglob
+    : edit the most recent note or the first note name matching the argument text
+    setopt localoptions extendedglob nocaseglob
     local notes_dir="${NOTES_DIR:-${HOME}/text/notes}"
     local -a notes
-    notes=( "$notes_dir"/*.(txt|md)(.om[1]N) )
-    (( $#notes )) || { print -u2 "nlast: no notes in ${notes_dir:-<unset>}"; return 1; }
-    ${(z)EDITOR} "$notes[1]"
-}
-nedit () {
-    : edit the first note name matching the argument text
-    setopt localoptions extendedglob nocaseglob
-    (( $# == 0 )) && {
-	print "usage: nedit <note name pattern>"
-	return 1
-    }
-    local notes_dir="${NOTES_DIR:-${HOME}/text/notes}"
-    local -a files
-    files=("$notes_dir"/*${1:-}*.(txt|md)(N))
-    if (( $#files == 0 ))
-    then
-	print -u2 "No notes found${1:+ matching '$1'}"
-	return 1
+    if (( $# == 0 )); then
+	notes=( "$notes_dir"/*.(txt|md)(.om[1]N) )
+	(( $#notes )) || { print -u2 "nlast: no notes in ${notes_dir:-<unset>}"; return 1; }
+    else
+	notes=( "$notes_dir"/*${1:-}*.(txt|md)(N) )
+	(( $#notes )) || { print -u2 "No notes found${1:+ matching '$1'}"; return 1; }
     fi
-    ${(z)EDITOR} "$files[1]"
+    ${(z)EDITOR} "$notes[1]"
 }
