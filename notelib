@@ -1,10 +1,14 @@
-# 2026-07-02T20-34Z: Release 0.2.0 :-- .../shellLibs/notelibs/.ver/0.2.3/notelib
-notelibv () { echo Release 0.2.0: notelib version 0.2.3 }
+# 2026-08-11T13-31Z: Release 0.3.0 :-- .../shellLibs/notelibs/.ver/0.3.0/notelib
+notelibv () { echo Release 0.3.0: notelib version 0.3.0; }
 # CLI note taking functions
 # from: http://lifehacker.com/5592047/turn-your-command-line-into-a-fast-and-simple-note+taking-tool
-# updates from mcgowan@alum.mit.edu
+# early updates from mcgowan@alum.mit.edu (1944 -  2026)
 # 2026-02-21 zsh-specific assistance from Claude Sonnet 4.6
+# 2026-08-10 bash/zsh normalization - assistance from kumo (Claude Opus 5)
 # Install: `source notelib`
+#
+# Portability: one code path, no shell detection, no ifdefs.
+# Targets zsh 5.x and bash 3.2 (the macOS system bash).
 notelib () {
     : debug ENTRY $# "$@"
     case "${1:-__NADA__}" in
@@ -33,47 +37,80 @@ ENVIRONMENT
 EOF
 }
 
+_notelib_dir () {
+    printf '%s\n' "${NOTES_DIR:-${HOME}/text/notes}"
+}
+
+_notelib_find () {
+    : list note files in $1 whose name contains $2, one per line, sorted by name
+    find "$1" -maxdepth 1 -type f \
+	 \( -iname "*$2*.txt" -o -iname "*$2*.md" \) 2>/dev/null | sort
+}
+
+_notelib_edit () {
+    : open $1 in $EDITOR, which may itself carry arguments
+    : eval word-splits EDITOR the same way in both shells
+    [[ -z "$EDITOR" ]] && { printf '%s\n' "Error: \$EDITOR is not set" >&2; return 1; }
+    eval "$EDITOR \"\$1\""
+}
+
 n () {
     : create or edit a text or markdown note
-    [[ -z "$EDITOR" ]] && { print -u2 "Error: \$EDITOR is not set"; return 1 }
-
-    ts () { print -r "$(TZ=UTC date +%Y-%m-%dT%H-%MZ)" }
-
-    local notes_dir="${NOTES_DIR:-${HOME}/text/notes}"
-    local name="${1:-$(ts)}"
-    [[ "$name" == (.|..|*/*) ]] && {
-        print -ru2 "Error: invalid note name '$name'"
-        return 1
-    }
-
-    mkdir -p -- "$notes"
-    [[ -z "${name:e}" ]] && name="${name}.md"
-    ${(z)EDITOR} "$notes_dir/$name"
+    [[ -z "$EDITOR" ]] && { printf '%s\n' "Error: \$EDITOR is not set" >&2; return 1; }
+    local notes_dir="$(_notelib_dir)"
+    local name="$1"
+    if [[ -z "$name" ]]; then
+        name="$(TZ=UTC date +%Y-%m-%dT%H-%MZ).md"
+    else
+        case "$name" in
+            (.|..|*/*|-*) printf '%s\n' "Error: invalid note name '$name'" >&2; return 1 ;;
+            (*.*) ;;
+            (*) name="${name}.md" ;;
+        esac
+    fi
+    mkdir -p -- "$notes_dir" || return 1
+    _notelib_edit "$notes_dir/$name"
 }
+
 nls () {
     : list notes
-    setopt localoptions extendedglob nocaseglob
-    local notes_dir="${NOTES_DIR:-${HOME}/text/notes}"
+    local notes_dir f
+    notes_dir="$(_notelib_dir)"
     local -a files
-    files=("$notes_dir"/*${1:-}*.(txt|md)(N))
-    if (( $#files == 0 ))
+    files=()
+    while IFS= read -r f
+    do
+	files+=("$f")
+    done < <(_notelib_find "$notes_dir" "${1:-}")
+
+    if (( ${#files[@]} == 0 ))
     then
-	print -u2 "No notes found${1:+ matching '$1'}"
+	printf '%s\n' "No notes found${1:+ matching '$1'}" >&2
 	return 1
     fi
-    ls -Flrt -- $files
+    ls -Flrt -- "${files[@]}"
 }
-nlast() {
+
+nlast () {
     : edit the most recent note or the first note name matching the argument text
-    setopt localoptions extendedglob nocaseglob
-    local notes_dir="${NOTES_DIR:-${HOME}/text/notes}"
-    local -a notes
-    if (( $# == 0 )); then
-	notes=( "$notes_dir"/*.(txt|md)(.om[1]N) )
-	(( $#notes )) || { print -u2 "nlast: no notes in ${notes_dir:-<unset>}"; return 1; }
+    local notes_dir f pick=""
+    notes_dir="$(_notelib_dir)"
+
+    if (( $# == 0 ))
+    then
+	while IFS= read -r f
+	do
+	    [[ -z "$pick" || "$f" -nt "$pick" ]] && pick="$f"
+	done < <(_notelib_find "$notes_dir" "")
+	[[ -n "$pick" ]] || { printf '%s\n' "nlast: no notes in ${notes_dir:-<unset>}" >&2; return 1; }
     else
-	notes=( "$notes_dir"/*${1:-}*.(txt|md)(N) )
-	(( $#notes )) || { print -u2 "No notes found${1:+ matching '$1'}"; return 1; }
+	while IFS= read -r f
+	do
+	    pick="$f"
+	    break
+	done < <(_notelib_find "$notes_dir" "$1")
+	[[ -n "$pick" ]] || { printf '%s\n' "No notes found matching '$1'" >&2; return 1; }
     fi
-    ${(z)EDITOR} "$notes[1]"
+
+    _notelib_edit "$pick"
 }
