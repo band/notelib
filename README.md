@@ -1,6 +1,6 @@
 # notelib  
 
-A ZSH library for simple note-taking at the command-line.
+A `zsh | bash` library for simple note-taking at the command-line.
 
 ## Install
 
